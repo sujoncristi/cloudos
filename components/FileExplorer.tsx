@@ -1,6 +1,6 @@
 
 import React, { useRef, useState, useMemo, useEffect, useCallback } from 'react';
-import { FileItem, User, ExplorerViewMode } from '../types';
+import { FileItem, User, ExplorerViewMode, STORAGE_LIMITS } from '../types';
 import FileDetailsPanel from './FileDetailsPanel';
 import ContextMenu from './ContextMenu';
 
@@ -23,23 +23,9 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'all' | 'trash'>('all');
+  const [viewMode, setViewMode] = useState<'home' | 'files' | 'trash'>('home');
   const [explorerMode, setExplorerMode] = useState<ExplorerViewMode>('grid');
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, fileId?: string } | null>(null);
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-
-  const breadcrumbs = useMemo(() => {
-    const crumbs: FileItem[] = [];
-    let currentId = currentFolderId;
-    while (currentId) {
-      const folder = files.find(f => f.id === currentId);
-      if (folder) { 
-        crumbs.unshift(folder); 
-        currentId = folder.parentId; 
-      } else break;
-    }
-    return crumbs;
-  }, [currentFolderId, files]);
 
   const filteredFiles = useMemo(() => {
     const query = searchQuery.toLowerCase();
@@ -52,9 +38,9 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
   }, [files, currentFolderId, searchQuery, viewMode]);
 
   const handleCreateFolder = useCallback(() => {
-    const n = prompt("Neural Folder Label:"); 
+    const n = prompt("Folder Name:"); 
     if(n && n.trim() !== "") {
-      const newFolder: FileItem = { 
+      onUpload({ 
         id: Math.random().toString(36).substr(2, 9), 
         userId: user.id, 
         parentId: currentFolderId, 
@@ -68,172 +54,147 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
         versions: [], 
         isShared: false, 
         isDeleted: false 
-      };
-      onUpload(newFolder);
+      });
     }
   }, [onUpload, user.id, currentFolderId]);
 
-  useEffect(() => {
-    const handleAction = (e: any) => {
-      const action = e.detail;
-      switch (action) {
-        case 'NEW_FOLDER': handleCreateFolder(); break;
-        case 'UPLOAD': fileInputRef.current?.click(); break;
-        case 'SELECT_ALL': onSelectFiles(filteredFiles.map(f => f.id)); break;
-        case 'VIEW_TRASH': setViewMode('trash'); break;
-        case 'TOGGLE_VIEW': setExplorerMode(prev => prev === 'grid' ? 'list' : 'grid'); break;
-      }
-    };
-    window.addEventListener('cloudos-action', handleAction);
-    return () => window.removeEventListener('cloudos-action', handleAction);
-  }, [filteredFiles, handleCreateFolder, onSelectFiles]);
-
-  const handleOpenFolder = useCallback((file: FileItem) => {
-    if (file.isLocked && file.password) {
-      const p = prompt(`Access Key required for hidden asset:`);
-      if (p === file.password) setCurrentFolderId(file.id);
-      else if (p !== null) alert("Identity mismatch.");
-    } else setCurrentFolderId(file.id);
-  }, []);
-
-  const menuItems = useMemo(() => {
-    if (!contextMenu) return [];
-    if (selectedFileIds.length > 1) {
-      return [[{ label: `Rename Batch (${selectedFileIds.length})`, onClick: () => onBulkRename?.(selectedFileIds, prompt("Prefix:") || '') }, { label: 'Purge Selection', variant: 'danger' as const, onClick: () => onUpdateFiles(prev => prev.map(f => selectedFileIds.includes(f.id) ? { ...f, isDeleted: true } : f)) }]];
-    }
-    if (contextMenu.fileId) {
-      const file = files.find(f => f.id === contextMenu.fileId);
-      if (file?.isDeleted) return [[{ label: 'Reconstruct Asset', onClick: () => onUpdateFiles(prev => prev.map(f => f.id === file.id ? { ...f, isDeleted: false } : f)) }]];
-      
-      const fileActions: any[] = [{ label: 'Spotlight Preview', onClick: () => file?.isFolder ? handleOpenFolder(file) : onPreview(file!) }];
-      if (file?.type === 'document' || file?.name.endsWith('.txt')) {
-        fileActions.push({ label: 'Edit Terminal Stream', onClick: () => onEditFile?.(file!) });
-      }
-      fileActions.push({ label: 'Global Social Share', onClick: () => onShareFile?.(file!) });
-
-      return [
-        fileActions,
-        [{ label: 'Refactor Identity', onClick: () => { const n = prompt("New Name:", file?.name); if(n) onUpdateFiles(prev => prev.map(f => f.id === file?.id ? {...f, name: n} : f)); }}],
-        [{ label: 'Omni-Protection', onClick: () => { const p = prompt("Set Neural Lock:"); onUpdateFiles(prev => prev.map(f => f.id === file?.id ? {...f, isLocked: !!p, password: p || undefined} : f)); }}],
-        [{ label: 'Move to Buffer Trash', variant: 'danger' as const, onClick: () => onUpdateFiles(prev => prev.map(f => f.id === file?.id ? {...f, isDeleted: true} : f)) }]
-      ];
-    }
-    return [[{ label: 'Create Neural Folder', onClick: handleCreateFolder }, { label: 'Ingest External Link', onClick: () => fileInputRef.current?.click() }]];
-  }, [contextMenu, files, selectedFileIds, handleCreateFolder, onUpdateFiles, onPreview, onBulkRename, onEditFile, onShareFile, handleOpenFolder]);
-
-  const onFileClick = useCallback((e: React.MouseEvent, file: FileItem) => {
-    e.stopPropagation(); 
-    const isSelected = selectedFileIds.includes(file.id);
-    if (e.shiftKey || e.metaKey) {
-      onSelectFiles(isSelected ? selectedFileIds.filter(id => id !== file.id) : [...selectedFileIds, file.id]);
-    } else {
-      onSelectFiles([file.id]);
-    }
-  }, [selectedFileIds, onSelectFiles]);
+  const storagePercent = (user.storageUsed / STORAGE_LIMITS[user.role]) * 100;
 
   return (
-    <div className="flex flex-1 flex-col bg-white/40 dark:bg-black/60 overflow-hidden relative" onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY }); }}>
-      
-      <div className={`transition-all duration-500 flex flex-col items-center justify-center p-4 border-b border-white/20 dark:border-white/10 ${isSearchFocused ? 'h-32 bg-white/70 dark:bg-black/90 shadow-2xl z-20' : 'h-16 bg-white/40 dark:bg-black/40'}`}>
-         <div className={`relative flex items-center transition-all duration-500 ease-out group ${isSearchFocused ? 'w-[85%] scale-105' : 'w-[70%]'}`}>
-            <div className={`absolute left-5 transition-transform duration-300 ${isSearchFocused ? 'scale-125 text-blue-500' : 'text-gray-400'}`}>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            </div>
-            <input 
-              type="text" 
-              placeholder="Spotlight CloudOS..." 
-              value={searchQuery}
-              onFocus={() => setIsSearchFocused(true)}
-              onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white/95 dark:bg-white/10 border border-white/60 dark:border-white/20 rounded-[22px] pl-14 pr-6 py-4 text-sm font-bold dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-8 focus:ring-blue-500/10 shadow-2xl transition-all" 
-            />
-         </div>
-      </div>
-
-      <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-white/30 dark:bg-black/30 backdrop-blur-3xl shrink-0">
-        <div className="flex items-center space-x-5">
-          <div className="flex bg-black/10 dark:bg-white/10 p-1 rounded-[16px] shadow-inner">
-             <button onClick={() => setViewMode('all')} className={`px-6 py-2 rounded-[12px] text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'all' ? 'bg-white dark:bg-white/20 text-blue-600 shadow-lg' : 'text-gray-500 hover:text-gray-700 dark:hover:text-white'}`}>Vault</button>
-             <button onClick={() => setViewMode('trash')} className={`px-6 py-2 rounded-[12px] text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'trash' ? 'bg-white dark:bg-red-900/40 text-red-500 shadow-lg' : 'text-gray-500 hover:text-gray-700 dark:hover:text-white'}`}>Trash</button>
-          </div>
-          <div className="flex items-center space-x-3 text-[12px] font-black text-gray-400 dark:text-white/30">
-            <span onClick={() => setCurrentFolderId(null)} className="hover:text-blue-600 transition-colors cursor-pointer tracking-wider">ROOT</span>
-            {breadcrumbs.map(crumb => (
-              <React.Fragment key={crumb.id}>
-                <span className="opacity-50">/</span>
-                <span onClick={() => handleOpenFolder(crumb)} className="hover:text-blue-600 cursor-pointer">{crumb.name.toUpperCase()}</span>
-              </React.Fragment>
+    <div className="flex flex-1 h-full bg-[#f5f7fa] dark:bg-black overflow-hidden select-none">
+      {/* Sidebar Navigation */}
+      <div className="w-64 border-r border-black/5 dark:border-white/5 bg-white dark:bg-zinc-900 flex flex-col shrink-0">
+        <div className="p-6">
+          <h2 className="text-[11px] font-black uppercase text-gray-400 tracking-[0.2em] mb-8">Navigation</h2>
+          <div className="space-y-1">
+            {[
+              { id: 'home', label: 'Home', icon: <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /> },
+              { id: 'files', label: 'Local Files', icon: <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /> },
+              { id: 'trash', label: 'Recycle Bin', icon: <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /> }
+            ].map(item => (
+              <button 
+                key={item.id}
+                onClick={() => { setViewMode(item.id as any); if(item.id !== 'home') setCurrentFolderId(null); }}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${viewMode === item.id ? 'bg-[#009688]/10 text-[#009688]' : 'text-gray-500 hover:bg-gray-100'}`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon.props.d} /></svg>
+                <span>{item.label}</span>
+              </button>
             ))}
           </div>
         </div>
-        <div className="flex items-center space-x-4">
-            <button onClick={handleCreateFolder} className="p-3 bg-white/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/15 rounded-2xl text-gray-600 dark:text-white/60 transition-all active:scale-90 border border-white/50 dark:border-white/10 shadow-md">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
-            </button>
+
+        <div className="mt-auto p-6 border-t border-black/5">
+          <div className="bg-gray-50 dark:bg-white/5 rounded-2xl p-4">
+             <div className="flex justify-between text-[10px] font-black uppercase text-gray-400 mb-2">
+                <span>Storage</span>
+                <span>{storagePercent.toFixed(1)}%</span>
+             </div>
+             <div className="h-1.5 w-full bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full bg-[#009688]" style={{ width: `${storagePercent}%` }} />
+             </div>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden flex">
-        <div className={`flex-1 p-8 overflow-y-auto no-scrollbar transition-all duration-700 ${isSearchFocused ? 'opacity-30 blur-2xl scale-[1.02]' : ''}`} onClick={() => onSelectFiles([])}>
-          {filteredFiles.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center opacity-10">
-               <svg className="w-36 h-36 mb-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
-               <p className="text-2xl font-black uppercase tracking-[0.8em]">Neural Empty</p>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <div className="h-16 border-b border-black/5 bg-white dark:bg-zinc-900 flex items-center justify-between px-8 shrink-0">
+          <div className="flex items-center space-x-4">
+            <button onClick={() => setCurrentFolderId(null)} className="text-gray-400 hover:text-[#009688]"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></button>
+            <div className="h-4 w-[1px] bg-gray-200" />
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{viewMode === 'home' ? 'Storage Hub' : 'Explorer'}</span>
+          </div>
+
+          <div className="flex items-center space-x-2 bg-gray-100 dark:bg-white/5 rounded-full px-4 py-2 w-64">
+            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <input 
+              type="text" 
+              placeholder="Search..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-transparent text-xs font-bold w-full focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-8 no-scrollbar" onClick={() => onSelectFiles([])}>
+          {viewMode === 'home' ? (
+            <div className="max-w-5xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {/* Storage Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="es-card p-6 flex items-center space-x-6 hover:shadow-xl transition-shadow cursor-pointer group">
+                  <div className="w-20 h-20 rounded-full border-[6px] border-[#009688]/10 flex items-center justify-center relative">
+                    <svg className="w-10 h-10 text-[#009688]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                    <svg className="absolute inset-0 w-full h-full -rotate-90">
+                      <circle cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-gray-100" />
+                      <circle cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="6" fill="transparent" strokeDasharray={213} strokeDashoffset={213 - (213 * storagePercent) / 100} className="text-[#009688] transition-all duration-1000" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-black text-gray-800 dark:text-white">Internal Storage</h3>
+                    <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">{((user.storageUsed / (1024*1024))).toFixed(1)}MB / 2.0GB</p>
+                    <div className="mt-3 h-1.5 w-full bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-[#009688]" style={{ width: `${storagePercent}%` }} /></div>
+                  </div>
+                </div>
+
+                <div className="es-card p-6 flex items-center space-x-6 opacity-60">
+                  <div className="w-20 h-20 rounded-full border-[6px] border-gray-100 flex items-center justify-center">
+                    <svg className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" /></svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-black text-gray-300">SD Card</h3>
+                    <p className="text-xs font-bold text-gray-300 mt-1 uppercase tracking-widest">Not Mounted</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Category Grid */}
+              <div className="es-card p-8">
+                <h4 className="text-[11px] font-black uppercase text-gray-400 tracking-[0.3em] mb-8">Library Quick Scan</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6">
+                  {[
+                    { label: 'Images', icon: '🖼️', color: 'bg-blue-500', count: files.filter(f => f.type === 'image').length },
+                    { label: 'Videos', icon: '🎬', color: 'bg-red-500', count: files.filter(f => f.type === 'video').length },
+                    { label: 'Audio', icon: '🎵', color: 'bg-orange-500', count: files.filter(f => f.type === 'audio').length },
+                    { label: 'Docs', icon: '📄', color: 'bg-cyan-500', count: files.filter(f => f.type === 'document' || f.type === 'text').length },
+                    { label: 'Apps', icon: '🧩', color: 'bg-green-500', count: 0 },
+                    { label: 'Cloud', icon: '☁️', color: 'bg-purple-600', count: files.filter(f => f.isShared).length }
+                  ].map(cat => (
+                    <div key={cat.label} onClick={() => setViewMode('files')} className="flex flex-col items-center group cursor-pointer">
+                      <div className={`w-16 h-16 ${cat.color} rounded-[22.5%] flex items-center justify-center text-3xl shadow-lg group-hover:scale-110 transition-transform active:scale-95 text-white`}>
+                        {cat.icon}
+                      </div>
+                      <span className="mt-3 text-[11px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-400">{cat.label}</span>
+                      <span className="text-[9px] font-bold text-gray-400">{cat.count} Items</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-          ) : explorerMode === 'grid' ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-8 gap-y-12 content-start items-start">
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-x-8 gap-y-12">
               {filteredFiles.map(file => {
                 const isSelected = selectedFileIds.includes(file.id);
                 return (
                   <div key={file.id} 
-                    className={`flex flex-col items-center p-4 rounded-[28px] transition-all cursor-default group relative animate-in fade-in zoom-in-95 duration-300 ${isSelected ? 'bg-blue-600/10 dark:bg-blue-500/20 ring-2 ring-blue-500/40 shadow-xl scale-105 z-10' : 'hover:bg-white/80 dark:hover:bg-white/5'}`}
-                    onClick={(e) => onFileClick(e, file)}
-                    onDoubleClick={() => file.isFolder ? handleOpenFolder(file) : onPreview(file)}
-                    onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onSelectFiles([file.id]); setContextMenu({ x: e.clientX, y: e.clientY, fileId: file.id }); }}
+                    className={`flex flex-col items-center p-4 rounded-2xl transition-all cursor-default group relative ${isSelected ? 'bg-[#009688]/10 ring-2 ring-[#009688]/40 shadow-xl' : 'hover:bg-white dark:hover:bg-white/5 shadow-sm'}`}
+                    onClick={(e) => { e.stopPropagation(); onSelectFiles([file.id]); }}
+                    onDoubleClick={() => file.isFolder ? setCurrentFolderId(file.id) : onPreview(file)}
                   >
-                    <div className="w-24 h-24 flex items-center justify-center text-6xl shadow-2xl rounded-[24%] bg-white dark:bg-black/80 border border-white dark:border-white/10 group-active:scale-95 transition-all overflow-hidden relative">
-                        {file.isFolder ? '📂' : file.type === 'image' ? <img src={file.dataUrl} className="w-full h-full object-cover" alt="" /> : file.type === 'video' ? '🎥' : file.type === 'audio' ? '🎵' : '📄'}
-                        
-                        {isSelected && (
-                          <div className="absolute top-2 left-2 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white animate-in zoom-in duration-200">
-                             <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                          </div>
-                        )}
-                        
-                        {file.isLocked && <div className="absolute bottom-2 right-2 bg-white/95 dark:bg-gray-800 p-1.5 rounded-full shadow-2xl ring-1 ring-black/5"><svg className="w-3.5 h-3.5 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg></div>}
+                    <div className="w-20 h-20 flex items-center justify-center text-5xl shadow-md rounded-[20%] bg-white dark:bg-zinc-800 border border-black/5 group-active:scale-95 transition-all overflow-hidden relative">
+                        {file.isFolder ? '📂' : file.type === 'image' ? <img src={file.dataUrl} className="w-full h-full object-cover" alt="" /> : file.type === 'video' ? '🎬' : file.type === 'audio' ? '🎵' : '📄'}
                     </div>
+                    {isSelected && <div className="absolute top-2 right-2 w-6 h-6 bg-[#009688] rounded-full flex items-center justify-center text-white shadow-lg"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" /></svg></div>}
                   </div>
                 );
               })}
-            </div>
-          ) : (
-            <div className="bg-white/50 dark:bg-black/20 rounded-[36px] border border-white dark:border-white/10 overflow-hidden shadow-2xl backdrop-blur-3xl">
-               <table className="w-full text-left">
-                  <thead><tr className="border-b border-white/20 text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest bg-white/20 dark:bg-black/30"><th className="px-12 py-6">Identity</th><th className="px-12 py-6">Allocation</th><th className="px-12 py-6">Date</th><th className="px-12 py-6">Modality</th></tr></thead>
-                  <tbody className="divide-y divide-white/10 dark:divide-white/5">
-                    {filteredFiles.map(file => (
-                      <tr key={file.id} 
-                        onClick={(e) => onFileClick(e, file)} 
-                        onDoubleClick={() => file.isFolder ? handleOpenFolder(file) : onPreview(file)}
-                        className={`hover:bg-blue-500/5 dark:hover:bg-blue-500/10 cursor-default transition-all duration-300 ${selectedFileIds.includes(file.id) ? 'bg-blue-500/10' : ''}`}>
-                        <td className="px-12 py-6 flex items-center space-x-6 text-[14px] font-black text-gray-800 dark:text-white/95">
-                           <span className="text-4xl filter drop-shadow-lg">{file.isFolder ? '📂' : '📄'}</span>
-                        </td>
-                        <td className="px-12 py-6 text-[12px] font-bold text-gray-500 dark:text-gray-400">{(file.size/1024).toFixed(1)} KB</td>
-                        <td className="px-12 py-6 text-[12px] font-bold text-gray-500 dark:text-gray-400">{new Date(file.createdAt).toLocaleDateString()}</td>
-                        <td className="px-12 py-6"><span className="px-5 py-2 rounded-full bg-white/60 dark:bg-white/5 text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-white/30 shadow-sm border border-white/40 dark:border-white/10">{file.type}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-               </table>
             </div>
           )}
         </div>
         <FileDetailsPanel file={selectedFileIds.length === 1 ? files.find(f => f.id === selectedFileIds[0]) || null : null} onPreview={onPreview} onUpdateFile={(updatedFile) => onUpdateFiles(prev => prev.map(f => f.id === updatedFile.id ? updatedFile : f))} onShareFile={onShareFile} />
       </div>
       <input type="file" ref={fileInputRef} className="hidden" multiple onChange={(e) => Array.from(e.target.files || []).forEach(f => { const reader = new FileReader(); reader.onload = (event) => onUpload({ id: Math.random().toString(36).substr(2, 9), userId: user.id, parentId: currentFolderId, isFolder: false, name: f.name, size: f.size, type: f.type.split('/')[0], dataUrl: event.target?.result as string, createdAt: Date.now(), tags: [], versions: [], isShared: false, isDeleted: false }); reader.readAsDataURL(f); })} />
-      {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} onClose={() => setContextMenu(null)} items={menuItems} />}
     </div>
   );
 };

@@ -4,90 +4,64 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CloudOS Sequoia - Next Gen File Management</title>
+    <title>CloudOS ES - Pro File Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <script>
-      // Shim process.env to prevent ReferenceErrors in browser ESM environment
-      window.process = {
-        env: {
-          API_KEY: "" // Will be injected by the environment if available
-        }
-      };
+      window.process = { env: { API_KEY: "" } };
     </script>
     <style>
       :root {
-        --glass-bg: rgba(255, 255, 255, 0.7);
-        --glass-border: rgba(255, 255, 255, 0.4);
+        --es-teal: #009688;
+        --es-blue: #2196F3;
+        --es-bg: #f5f7fa;
+        --es-sidebar: #ffffff;
       }
       body {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        font-family: 'Roboto', sans-serif;
         overflow: hidden;
         user-select: none;
         -webkit-font-smoothing: antialiased;
+        background-color: var(--es-bg);
+      }
+      .es-gradient {
+        background: linear-gradient(135deg, #009688 0%, #00796b 100%);
+      }
+      .es-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        border: 1px solid rgba(0,0,0,0.04);
       }
       .mac-blur {
-        backdrop-filter: blur(40px) saturate(180%);
-        background-color: var(--glass-bg);
-        border: 1px solid var(--glass-border);
+        backdrop-filter: blur(20px);
+        background-color: rgba(255, 255, 255, 0.95);
+        border: 1px solid rgba(0,0,0,0.1);
       }
       .dark .mac-blur {
-        background-color: rgba(15, 15, 20, 0.75);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-      }
-      .midnight .mac-blur {
-        background-color: rgba(2, 6, 23, 0.85);
+        background-color: rgba(30, 30, 35, 0.95);
         border: 1px solid rgba(255, 255, 255, 0.05);
       }
-      .solar .mac-blur {
-        background-color: rgba(255, 247, 237, 0.75);
-        border: 1px solid rgba(251, 191, 36, 0.2);
-      }
-      .ios-icon {
-        box-shadow: 0 8px 16px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.05);
-        border-radius: 22.5%;
-        transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
-      }
-      .ios-icon:hover {
-        transform: scale(1.15) translateY(-5px);
-        box-shadow: 0 15px 30px rgba(0,0,0,0.2);
-      }
       .window-shadow {
-        box-shadow: 0 40px 80px -15px rgba(0, 0, 0, 0.35), 0 20px 40px -20px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
       }
-      .window-shadow-inactive {
-        box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.2);
+      .es-icon-btn {
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       }
-      .noise-bg::before {
-        content: "";
-        position: fixed;
-        top: 0; left: 0; width: 100vw; height: 100vh;
-        opacity: 0.03;
-        pointer-events: none;
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3%3Ffilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-        z-index: 9999;
+      .es-icon-btn:active {
+        transform: scale(0.92);
+        opacity: 0.8;
       }
       ::-webkit-scrollbar {
-        width: 10px;
-        height: 10px;
-      }
-      ::-webkit-scrollbar-track {
-        background: transparent;
+        width: 6px;
+        height: 6px;
       }
       ::-webkit-scrollbar-thumb {
-        background: rgba(0,0,0,0.15);
-        border-radius: 20px;
-        border: 2px solid transparent;
-        background-clip: content-box;
-      }
-      .dark ::-webkit-scrollbar-thumb {
-        background: rgba(255,255,255,0.2);
+        background: #ced4da;
+        border-radius: 10px;
       }
       .no-scrollbar::-webkit-scrollbar {
         display: none;
-      }
-      .spotlight-glow {
-        box-shadow: 0 0 100px 20px rgba(59, 130, 246, 0.15);
       }
     </style>
   <script type="importmap">
@@ -102,7 +76,7 @@
 }
 </script>
 </head>
-  <body class="bg-gray-950 text-gray-900 noise-bg">
+  <body class="bg-gray-100 text-gray-900">
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
   </body>

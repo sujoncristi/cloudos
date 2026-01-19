@@ -11,7 +11,7 @@ interface WindowProps {
 }
 
 const Window: React.FC<WindowProps> = ({ type, children, onClose, isActive, onFocus }) => {
-  const [position, setPosition] = useState({ x: 100 + (Math.random() * 40), y: 60 + (Math.random() * 40) });
+  const [position, setPosition] = useState({ x: 60 + (Math.random() * 40), y: 40 + (Math.random() * 40) });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
@@ -38,85 +38,68 @@ const Window: React.FC<WindowProps> = ({ type, children, onClose, isActive, onFo
 
   const title = useMemo(() => {
     switch (type) {
-      case WindowType.FILES: return 'Finder';
-      case WindowType.SETTINGS: return 'Admin Console';
-      case WindowType.AUTH: return 'Passport';
+      case WindowType.FILES: return 'ES Explorer';
+      case WindowType.SETTINGS: return 'Root Settings';
+      case WindowType.AUTH: return 'User Account';
       case WindowType.INTELLIGENCE: return 'Neural Assistant';
       case WindowType.NOTES: return 'Memos';
-      case WindowType.PREFERENCES: return 'System Preferences';
-      case WindowType.SYSTEM_INFO: return 'About';
-      case WindowType.DASHBOARD: return 'Activity Hub';
-      case WindowType.CAMERA: return 'Photo Booth';
-      case WindowType.EDITOR: return 'Script Editor';
-      case WindowType.SHARE_MODAL: return 'Nexus Share';
-      case WindowType.PAINT: return 'Paint Studio';
+      case WindowType.PREFERENCES: return 'Settings';
+      case WindowType.SYSTEM_INFO: return 'Properties';
+      case WindowType.DASHBOARD: return 'Logger';
+      case WindowType.CAMERA: return 'Camera';
+      case WindowType.EDITOR: return 'Note Editor';
+      case WindowType.PAINT: return 'Canvas';
       case WindowType.CALCULATOR: return 'Calculator';
-      case WindowType.CALENDAR: return 'Calendar';
+      case WindowType.CALENDAR: return 'Planner';
       case WindowType.WEATHER: return 'Weather';
-      default: return 'Window';
+      default: return 'App';
     }
   }, [type]);
 
-  const isMobile = window.innerWidth < 768;
-
-  const style: React.CSSProperties = isMobile ? {
-    top: '1.75rem',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: '100vw',
-    height: 'calc(100vh - 1.75rem)',
-    zIndex: isActive ? 40 : 30
-  } : {
-    top: Math.max(28, position.y),
+  const style: React.CSSProperties = {
+    top: Math.max(0, position.y),
     left: position.x,
-    width: type === WindowType.FILES ? '1024px' : 
-           type === WindowType.INTELLIGENCE ? '440px' : 
-           type === WindowType.DASHBOARD ? '960px' : 
-           type === WindowType.CALCULATOR ? '320px' :
-           type === WindowType.CALENDAR ? '800px' :
-           type === WindowType.WEATHER ? '400px' :
-           '840px',
-    maxWidth: '96vw',
-    height: type === WindowType.INTELLIGENCE ? '580px' : 
-            type === WindowType.CAMERA ? '640px' : 
-            type === WindowType.CALCULATOR ? '480px' :
-            type === WindowType.WEATHER ? '720px' :
-            '680px',
-    maxHeight: '88vh',
+    width: type === WindowType.FILES ? '1100px' : '800px',
+    maxWidth: '100vw',
+    height: '750px',
+    maxHeight: '95vh',
     zIndex: isActive ? 40 : 30,
-    transition: isDragging ? 'none' : 'z-index 0.2s ease, transform 0.2s ease, box-shadow 0.3s ease',
-    willChange: 'transform, top, left, width, height',
-    transform: 'translate3d(0,0,0)' // Force GPU acceleration
+    transition: isDragging ? 'none' : 'z-index 0.2s ease, transform 0.2s ease',
+    willChange: 'transform, top, left',
+    transform: 'translate3d(0,0,0)'
   };
 
   return (
     <div 
       style={style}
-      className={`absolute flex flex-col mac-blur rounded-2xl overflow-hidden border border-white/40 dark:border-white/10 ${isActive ? 'window-shadow ring-1 ring-blue-500/20' : 'window-shadow-inactive opacity-95 scale-[0.99]'}`}
+      className={`absolute flex flex-col bg-white dark:bg-[#121212] rounded-xl overflow-hidden shadow-2xl border border-black/5 dark:border-white/5 ${isActive ? 'window-shadow' : 'opacity-95'}`}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       onClick={onFocus}
     >
+      {/* ES Style Header */}
       <div 
-        className={`h-11 flex items-center justify-between px-5 transition-colors duration-300 cursor-default select-none border-b shrink-0 ${isActive ? 'bg-white/30 dark:bg-white/5 border-black/5 dark:border-white/5' : 'bg-gray-200/20 dark:bg-black/40 border-transparent'}`}
+        className={`h-14 flex items-center justify-between px-6 transition-colors duration-300 cursor-default select-none shrink-0 ${isActive ? 'bg-[#009688] text-white' : 'bg-gray-200 dark:bg-zinc-800 text-gray-500'}`}
         onMouseDown={handleMouseDown}
       >
-        <div className="flex items-center space-x-2.5">
-          <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="window-control-btn w-3.5 h-3.5 bg-[#FF5F56] hover:bg-[#FF3B30] rounded-full transition-all shadow-inner border border-black/10 flex items-center justify-center group">
-            <svg className="w-2 h-2 text-black/40 opacity-0 group-hover:opacity-100" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 6L6 18M6 6l12 12" strokeWidth="3" strokeLinecap="round" /></svg>
-          </button>
-          <div className="w-3.5 h-3.5 bg-[#FFBD2E] rounded-full shadow-inner border border-black/10"></div>
-          <div className="w-3.5 h-3.5 bg-[#27C93F] rounded-full shadow-inner border border-black/10"></div>
+        <div className="flex items-center space-x-4">
+          <svg className="w-5 h-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" /></svg>
+          <span className="text-sm font-bold tracking-wide uppercase">
+            {title}
+          </span>
         </div>
-        <span className={`text-[11px] font-black tracking-tight uppercase transition-opacity duration-300 ${isActive ? 'text-gray-800 dark:text-white' : 'text-gray-400 dark:text-gray-600'}`}>
-          {title}
-        </span>
-        <div className="w-14"></div>
+        
+        <div className="flex items-center space-x-1">
+          <button className="window-control-btn p-2 hover:bg-black/10 rounded-full transition-colors"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 12H4" strokeWidth="3" strokeLinecap="round" /></svg></button>
+          <button className="window-control-btn p-2 hover:bg-black/10 rounded-full transition-colors"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4h16v16H4z" strokeWidth="2.5" /></svg></button>
+          <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="window-control-btn p-2 hover:bg-red-500 hover:text-white rounded-full transition-colors">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 6L6 18M6 6l12 12" strokeWidth="3" strokeLinecap="round" /></svg>
+          </button>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 overflow-hidden relative bg-[#f5f7fa] dark:bg-black">
         {children}
       </div>
     </div>
