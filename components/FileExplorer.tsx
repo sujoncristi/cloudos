@@ -90,7 +90,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
 
   const handleOpenFolder = (file: FileItem) => {
     if (file.isLocked && file.password) {
-      const p = prompt(`Access Key required for "${file.name}":`);
+      const p = prompt(`Access Key required for hidden asset:`);
       if (p === file.password) setCurrentFolderId(file.id);
       else if (p !== null) alert("Identity mismatch.");
     } else setCurrentFolderId(file.id);
@@ -184,8 +184,8 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
                     onDoubleClick={() => file.isFolder ? handleOpenFolder(file) : onPreview(file)}
                     onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onSelectFiles([file.id]); setContextMenu({ x: e.clientX, y: e.clientY, fileId: file.id }); }}
                   >
-                    <div className="w-24 h-24 mb-4 flex items-center justify-center text-6xl shadow-2xl rounded-[24%] bg-white dark:bg-black/80 border border-white dark:border-white/10 group-active:scale-95 transition-all overflow-hidden relative">
-                        {file.isFolder ? '📂' : file.type === 'image' ? <img src={file.dataUrl} className="w-full h-full object-cover" alt={file.name} /> : file.type === 'video' ? '🎥' : file.type === 'audio' ? '🎵' : '📄'}
+                    <div className="w-24 h-24 flex items-center justify-center text-6xl shadow-2xl rounded-[24%] bg-white dark:bg-black/80 border border-white dark:border-white/10 group-active:scale-95 transition-all overflow-hidden relative">
+                        {file.isFolder ? '📂' : file.type === 'image' ? <img src={file.dataUrl} className="w-full h-full object-cover" alt="" /> : file.type === 'video' ? '🎥' : file.type === 'audio' ? '🎵' : '📄'}
                         
                         {/* Selection Indicator */}
                         {isSelected && (
@@ -196,10 +196,6 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
                         
                         {file.isLocked && <div className="absolute bottom-2 right-2 bg-white/95 dark:bg-gray-800 p-1.5 rounded-full shadow-2xl ring-1 ring-black/5"><svg className="w-3.5 h-3.5 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg></div>}
                     </div>
-                    {/* Full file name display */}
-                    <span className="text-[12px] font-black text-gray-800 dark:text-white/95 text-center px-2 tracking-tight leading-[1.3] group-hover:text-blue-600 transition-colors break-words w-full overflow-visible whitespace-normal">
-                      {file.name}
-                    </span>
                   </div>
                 );
               })}
@@ -216,7 +212,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
                         className={`hover:bg-blue-500/5 dark:hover:bg-blue-500/10 cursor-default transition-all duration-300 ${selectedFileIds.includes(file.id) ? 'bg-blue-500/10' : ''}`}>
                         <td className="px-12 py-6 flex items-center space-x-6 text-[14px] font-black text-gray-800 dark:text-white/95">
                            <span className="text-4xl filter drop-shadow-lg">{file.isFolder ? '📂' : '📄'}</span>
-                           <span>{file.name}</span>
+                           {/* Name removed as per request - only icon remains in the main list view identity column */}
                         </td>
                         <td className="px-12 py-6 text-[12px] font-bold text-gray-500 dark:text-gray-400">{(file.size/1024).toFixed(1)} KB</td>
                         <td className="px-12 py-6 text-[12px] font-bold text-gray-500 dark:text-gray-400">{new Date(file.createdAt).toLocaleDateString()}</td>
