@@ -33,6 +33,7 @@ const App: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [theme, setTheme] = useState<ThemeMode>('light');
   const [notes, setNotes] = useState<Note[]>([]);
+  const [prefTab, setPrefTab] = useState<'PROFILE' | 'APPEARANCE' | 'STORAGE' | 'ABOUT'>('PROFILE');
 
   const sysStats = useMemo(() => ({
     totalUsers: allUsers.length,
@@ -112,6 +113,7 @@ const App: React.FC = () => {
       case 'CALCULATOR': openWindow(WindowType.CALCULATOR); break;
       case 'CALENDAR': openWindow(WindowType.CALENDAR); break;
       case 'WEATHER': openWindow(WindowType.WEATHER); break;
+      case 'VIEW_FILES': openWindow(WindowType.FILES); break;
       default: console.log("Menu Action:", action);
     }
   };
@@ -223,6 +225,34 @@ const App: React.FC = () => {
                 }} 
               />
             )}
+            {type === WindowType.SETTINGS && currentUser?.isAdmin && (
+              <div className="h-full flex flex-col bg-white/40 dark:bg-black/40 backdrop-blur-3xl p-10 overflow-y-auto no-scrollbar">
+                <h2 className="text-3xl font-black mb-8 dark:text-white tracking-tighter uppercase">Root Administrator Console</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+                   <div className="bg-white/90 dark:bg-white/5 p-8 rounded-[32px] border border-black/5">
+                      <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-6">Neural Registry ({allUsers.length})</h3>
+                      <div className="space-y-4">
+                        {allUsers.slice(0, 5).map(u => (
+                          <div key={u.id} className="flex items-center justify-between">
+                            <span className="text-xs font-bold dark:text-white">{u.username}</span>
+                            <span className="text-[9px] font-black uppercase px-3 py-1 bg-blue-500/10 text-blue-500 rounded-full">{u.role}</span>
+                          </div>
+                        ))}
+                      </div>
+                   </div>
+                   <div className="bg-white/90 dark:bg-white/5 p-8 rounded-[32px] border border-black/5">
+                      <h3 className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-6">Vault Control</h3>
+                      <button 
+                        onClick={() => setAdminViewMode(prev => prev === 'GLOBAL' ? 'PERSONAL' : 'GLOBAL')}
+                        className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all ${adminViewMode === 'GLOBAL' ? 'bg-indigo-600 text-white shadow-xl' : 'bg-white dark:bg-white/10 text-gray-500'}`}
+                      >
+                        {adminViewMode === 'GLOBAL' ? 'Deactivate Global Sight' : 'Activate Global Sight'}
+                      </button>
+                      <p className="text-[8px] text-gray-400 mt-4 font-bold text-center">Toggling global sight allows root access to all network assets.</p>
+                   </div>
+                </div>
+              </div>
+            )}
             {type === WindowType.SYSTEM_INFO && (
               <div className="h-full flex flex-col items-center justify-center p-12 text-center bg-white/40 dark:bg-black/40 backdrop-blur-3xl">
                 <div className="w-24 h-24 mb-6 bg-gradient-to-br from-blue-500 to-indigo-700 rounded-[22%] shadow-2xl flex items-center justify-center text-5xl text-white font-black"></div>
@@ -238,17 +268,115 @@ const App: React.FC = () => {
                 </div>
               </div>
             )}
-            {type === WindowType.PREFERENCES && (
-              <div className="p-10 h-full bg-white/20 dark:bg-black/20 overflow-y-auto no-scrollbar">
-                <h2 className="text-3xl font-black mb-10 dark:text-white tracking-tight">System Identity</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
-                  {(['light', 'dark', 'midnight', 'solar'] as ThemeMode[]).map(t => (
-                    <button key={t} onClick={() => handleMenuAction(`THEME_${t.toUpperCase()}`)} className={`h-28 rounded-3xl border-4 transition-all overflow-hidden ${theme === t ? 'border-blue-600 scale-105 shadow-2xl ring-4 ring-blue-500/10' : 'border-white/50 hover:border-blue-300'}`}>
-                      <div className={`w-full h-full flex items-center justify-center text-[9px] font-black uppercase tracking-widest ${t === 'light' ? 'bg-blue-50 text-blue-900' : t === 'dark' ? 'bg-gray-800 text-gray-100' : t === 'midnight' ? 'bg-slate-950 text-indigo-100' : 'bg-orange-100 text-orange-900'}`}>
-                        {t}
-                      </div>
+            {type === WindowType.PREFERENCES && currentUser && (
+              <div className="h-full flex bg-white/80 dark:bg-zinc-900/90 backdrop-blur-2xl overflow-hidden">
+                {/* Sidebar Navigation */}
+                <div className="w-64 border-r border-black/5 dark:border-white/5 flex flex-col p-4 space-y-2 bg-gray-50/50 dark:bg-black/20">
+                  <div className="px-4 py-4 mb-4">
+                    <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Settings</h2>
+                  </div>
+                  {[
+                    { id: 'PROFILE', label: 'User Profile', icon: <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /> },
+                    { id: 'APPEARANCE', label: 'Appearance', icon: <path d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /> },
+                    { id: 'STORAGE', label: 'Vault Storage', icon: <path d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /> },
+                    { id: 'ABOUT', label: 'CloudOS About', icon: <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /> },
+                  ].map(tab => (
+                    <button 
+                      key={tab.id}
+                      onClick={() => setPrefTab(tab.id as any)}
+                      className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl text-[11px] font-bold transition-all ${prefTab === tab.id ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/5'}`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={tab.icon.props.d} /></svg>
+                      <span>{tab.label}</span>
                     </button>
                   ))}
+                </div>
+
+                {/* Content Area */}
+                <div className="flex-1 p-12 overflow-y-auto no-scrollbar">
+                  {prefTab === 'PROFILE' && (
+                    <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+                      <div className="flex items-center space-x-8 mb-12">
+                         <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-indigo-700 shadow-2xl flex items-center justify-center text-3xl text-white font-black ring-4 ring-white/50">
+                           {currentUser.username[0].toUpperCase()}
+                         </div>
+                         <div>
+                            <h3 className="text-3xl font-black dark:text-white tracking-tight">{currentUser.username}</h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{currentUser.email}</p>
+                            <span className="mt-3 inline-block px-4 py-1 rounded-full bg-blue-500/10 text-blue-500 text-[10px] font-black uppercase tracking-widest">{currentUser.role} NODE</span>
+                         </div>
+                      </div>
+                      <div className="bg-black/5 dark:bg-white/5 p-8 rounded-3xl border border-black/5 dark:border-white/5">
+                         <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6">User Telemetry</h4>
+                         <div className="grid grid-cols-2 gap-8">
+                            <div><p className="text-[9px] font-black text-gray-400 uppercase mb-1">Status</p><p className="text-sm font-bold dark:text-white text-green-500">{currentUser.status}</p></div>
+                            <div><p className="text-[9px] font-black text-gray-400 uppercase mb-1">System Privilege</p><p className="text-sm font-bold dark:text-white">{currentUser.isAdmin ? 'Root' : 'Standard'}</p></div>
+                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {prefTab === 'APPEARANCE' && (
+                    <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+                      <h3 className="text-2xl font-black mb-10 dark:text-white tracking-tight">System Appearance</h3>
+                      <div className="grid grid-cols-2 gap-6">
+                        {(['light', 'dark', 'midnight', 'solar'] as ThemeMode[]).map(t => (
+                          <button 
+                            key={t} 
+                            onClick={() => handleMenuAction(`THEME_${t.toUpperCase()}`)} 
+                            className={`group relative h-32 rounded-3xl border-4 transition-all overflow-hidden ${theme === t ? 'border-blue-600 shadow-2xl scale-[1.02]' : 'border-black/5 dark:border-white/10 hover:border-blue-300'}`}
+                          >
+                            <div className={`w-full h-full flex flex-col items-center justify-center ${t === 'light' ? 'bg-white' : t === 'dark' ? 'bg-zinc-800' : t === 'midnight' ? 'bg-slate-950' : 'bg-orange-50'}`}>
+                               <span className={`text-[10px] font-black uppercase tracking-widest ${t === 'light' ? 'text-gray-900' : t === 'dark' ? 'text-gray-100' : t === 'midnight' ? 'text-indigo-100' : 'text-orange-900'}`}>{t}</span>
+                               <div className="mt-4 flex space-x-2">
+                                  <div className="w-3 h-3 rounded-full bg-blue-500" />
+                                  <div className="w-3 h-3 rounded-full bg-gray-400" />
+                                  <div className="w-3 h-3 rounded-full bg-gray-300" />
+                               </div>
+                            </div>
+                            {theme === t && <div className="absolute top-3 right-3 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg"><svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" /></svg></div>}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {prefTab === 'STORAGE' && (
+                    <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+                      <h3 className="text-2xl font-black mb-2 dark:text-white tracking-tight">Vault Capacity</h3>
+                      <p className="text-xs text-gray-500 mb-12">Allocated storage breakdown for your neural node.</p>
+                      
+                      <div className="mb-12">
+                         <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">
+                            <span>Storage Allocation</span>
+                            <span className="text-blue-600">{((currentUser.storageUsed / STORAGE_LIMITS[currentUser.role]) * 100).toFixed(1)}%</span>
+                         </div>
+                         <div className="w-full h-4 bg-black/5 dark:bg-white/5 rounded-full overflow-hidden flex shadow-inner border border-black/5">
+                            <div 
+                              className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 shadow-[0_0_15px_rgba(59,130,246,0.5)] transition-all duration-1000 ease-out" 
+                              style={{ width: `${(currentUser.storageUsed / STORAGE_LIMITS[currentUser.role]) * 100}%` }}
+                            />
+                         </div>
+                         <div className="mt-6 flex justify-between text-[11px] font-bold dark:text-white">
+                            <span className="opacity-50">Used: {((currentUser.storageUsed / (1024*1024))).toFixed(1)} MB</span>
+                            <span className="opacity-50">Total: {((STORAGE_LIMITS[currentUser.role] / (1024*1024))).toFixed(1)} MB</span>
+                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {prefTab === 'ABOUT' && (
+                    <div className="animate-in fade-in slide-in-from-right-4 duration-500 flex flex-col items-center justify-center h-full text-center">
+                       <div className="w-24 h-24 mb-6 bg-gradient-to-br from-blue-500 to-indigo-700 rounded-[22%] shadow-2xl flex items-center justify-center text-5xl text-white font-black"></div>
+                       <h2 className="text-3xl font-black text-gray-800 dark:text-white tracking-tighter">CloudOS X</h2>
+                       <p className="text-gray-500 dark:text-gray-400 text-[10px] font-black uppercase tracking-widest mb-10">Sequoia Edition v5.1</p>
+                       <p className="max-w-md text-sm text-gray-400 font-medium leading-relaxed italic">"A boundaryless digital landscape where logic meets aesthetics."</p>
+                       <div className="mt-12 text-[9px] font-black text-gray-300 flex flex-col items-center">
+                         <span>Developed by Sujon Kumar Roy</span>
+                         <a href="https://facebook.com/sujonworld0" target="_blank" className="text-blue-500 font-black hover:underline mt-1">facebook.com/sujonworld0</a>
+                       </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

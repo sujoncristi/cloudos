@@ -39,11 +39,11 @@ const Window: React.FC<WindowProps> = ({ type, children, onClose, isActive, onFo
   const getTitle = () => {
     switch (type) {
       case WindowType.FILES: return 'Finder';
-      case WindowType.SETTINGS: return 'Console';
+      case WindowType.SETTINGS: return 'Admin Console';
       case WindowType.AUTH: return 'Passport';
       case WindowType.INTELLIGENCE: return 'Neural Assistant';
       case WindowType.NOTES: return 'Memos';
-      case WindowType.PREFERENCES: return 'Settings';
+      case WindowType.PREFERENCES: return 'System Preferences';
       case WindowType.SYSTEM_INFO: return 'About';
       case WindowType.DASHBOARD: return 'Activity Hub';
       case WindowType.CAMERA: return 'Photo Booth';
