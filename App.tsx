@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { User, FileItem, WindowType, STORAGE_LIMITS, ActivityLog, Notification, ThemeMode, Note } from './types';
 import MenuBar from './components/MenuBar';
 import Dock from './components/Dock';
@@ -76,13 +76,31 @@ const App: React.FC = () => {
     localStorage.setItem('cloudos_notes', JSON.stringify(notes));
   }, [files, allUsers, logs, theme, notes]);
 
-  const notify = (title: string, message: string, type: 'info' | 'success' | 'error' = 'info') => {
+  const notify = useCallback((title: string, message: string, type: 'info' | 'success' | 'error' = 'info') => {
     const id = Math.random().toString(36).substr(2, 9);
     setNotifications(prev => [...prev, { id, title, message, type }]);
     setTimeout(() => setNotifications(prev => prev.filter(n => n.id !== id)), 4000);
-  };
+  }, []);
 
-  const handleMenuAction = (action: string) => {
+  const openWindow = useCallback((type: WindowType) => {
+    setActiveWindows(prev => {
+      if (type === WindowType.SETTINGS && (!currentUser || !currentUser.isAdmin)) {
+        notify("Bypass Denied", "Administrative signature required.", "error");
+        return prev;
+      }
+      return prev.includes(type) 
+        ? [...prev.filter(w => w !== type), type] 
+        : [...prev, type];
+    });
+  }, [currentUser, notify]);
+
+  const closeWindow = useCallback((type: WindowType) => {
+    setActiveWindows(prev => prev.filter(w => w !== type));
+    if (type === WindowType.EDITOR) setEditingFile(null);
+    if (type === WindowType.SHARE_MODAL) setSharingFile(null);
+  }, []);
+
+  const handleMenuAction = useCallback((action: string) => {
     if (action.startsWith('THEME_')) {
       const selectedTheme = action.replace('THEME_', '').toLowerCase() as ThemeMode;
       setTheme(selectedTheme);
@@ -116,41 +134,29 @@ const App: React.FC = () => {
       case 'VIEW_FILES': openWindow(WindowType.FILES); break;
       default: console.log("Menu Action:", action);
     }
-  };
+  }, [notify, openWindow]);
 
-  const openWindow = (type: WindowType) => {
-    if (type === WindowType.SETTINGS && (!currentUser || !currentUser.isAdmin)) {
-      notify("Bypass Denied", "Administrative signature required.", "error");
-      return;
-    }
-    setActiveWindows(prev => prev.includes(type) ? [...prev.filter(w => w !== type), type] : [...prev, type]);
-  };
+  const handleFileUpload = useCallback((newFile: FileItem) => {
+    setCurrentUser(curr => {
+      if (!curr) return curr;
+      const limit = STORAGE_LIMITS[curr.role];
+      if (curr.storageUsed + newFile.size > limit) {
+        notify("Buffer Full", "Storage ceiling reached. Clean up required.", "error");
+        return curr;
+      }
+      setFiles(prev => [...prev, newFile]);
+      if (newFile.size > 0) {
+        notify("Asset Locked", `${newFile.name} added to your vault.`, "success");
+        return { ...curr, storageUsed: curr.storageUsed + newFile.size };
+      }
+      return curr;
+    });
+  }, [notify]);
 
-  const closeWindow = (type: WindowType) => {
-    setActiveWindows(prev => prev.filter(w => w !== type));
-    if (type === WindowType.EDITOR) setEditingFile(null);
-    if (type === WindowType.SHARE_MODAL) setSharingFile(null);
-  };
-
-  const handleFileUpload = (newFile: FileItem) => {
-    if (!currentUser) return;
-    const limit = STORAGE_LIMITS[currentUser.role];
-    if (currentUser.storageUsed + newFile.size > limit) {
-      notify("Buffer Full", "Storage ceiling reached. Clean up required.", "error");
-      return;
-    }
-    setFiles(prev => [...prev, newFile]);
-    if (newFile.size > 0) {
-      const updatedUser = { ...currentUser, storageUsed: currentUser.storageUsed + newFile.size };
-      setCurrentUser(updatedUser);
-      notify("Asset Locked", `${newFile.name} added to your vault.`, "success");
-    }
-  };
-
-  const handleShareFile = (file: FileItem) => {
+  const handleShareFile = useCallback((file: FileItem) => {
     setSharingFile(file);
     openWindow(WindowType.SHARE_MODAL);
-  };
+  }, [openWindow]);
 
   const bgStyle = useMemo(() => {
     const urls = {
@@ -172,9 +178,9 @@ const App: React.FC = () => {
         CloudOS X Creator: Sujon Kumar Roy
       </div>
 
-      <div className="fixed top-12 right-4 z-[100] flex flex-col space-y-2 w-80">
+      <div className="fixed top-12 right-4 z-[100] flex flex-col space-y-2 w-80 pointer-events-none">
         {notifications.map(n => (
-          <div key={n.id} className="bg-white/90 dark:bg-black/80 dark:border-white/20 backdrop-blur-2xl border border-white/50 p-4 rounded-3xl shadow-2xl flex items-start space-x-3 animate-in slide-in-from-right duration-500 ring-1 ring-white/10">
+          <div key={n.id} className="pointer-events-auto bg-white/90 dark:bg-black/80 dark:border-white/20 backdrop-blur-2xl border border-white/50 p-4 rounded-3xl shadow-2xl flex items-start space-x-3 animate-in slide-in-from-right duration-500 ring-1 ring-white/10">
              <div className={`w-3 h-3 rounded-full mt-1 shrink-0 ${n.type === 'success' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : n.type === 'error' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]'}`} />
              <div>
                 <p className="text-[10px] font-black text-gray-800 dark:text-white uppercase tracking-widest">{n.title}</p>
@@ -191,7 +197,7 @@ const App: React.FC = () => {
             type={type} 
             onClose={() => closeWindow(type)}
             isActive={activeWindows[activeWindows.length - 1] === type}
-            onFocus={() => setActiveWindows([...activeWindows.filter(w => w !== type), type])}
+            onFocus={() => setActiveWindows(prev => [...prev.filter(w => w !== type), type])}
           >
             {type === WindowType.AUTH && <Auth onLogin={(u) => { setCurrentUser(u); setTheme(u.theme || 'light'); setActiveWindows([WindowType.FILES]); }} />}
             {type === WindowType.FILES && currentUser && (
@@ -270,7 +276,6 @@ const App: React.FC = () => {
             )}
             {type === WindowType.PREFERENCES && currentUser && (
               <div className="h-full flex bg-white/80 dark:bg-zinc-900/90 backdrop-blur-2xl overflow-hidden">
-                {/* Sidebar Navigation */}
                 <div className="w-64 border-r border-black/5 dark:border-white/5 flex flex-col p-4 space-y-2 bg-gray-50/50 dark:bg-black/20">
                   <div className="px-4 py-4 mb-4">
                     <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Settings</h2>
@@ -292,7 +297,6 @@ const App: React.FC = () => {
                   ))}
                 </div>
 
-                {/* Content Area */}
                 <div className="flex-1 p-12 overflow-y-auto no-scrollbar">
                   {prefTab === 'PROFILE' && (
                     <div className="animate-in fade-in slide-in-from-right-4 duration-500">

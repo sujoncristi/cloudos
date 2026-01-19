@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { User } from '../types';
 
 interface MenuBarProps {
@@ -17,14 +17,15 @@ const MenuDropdown: React.FC<{
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!isOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        if (isOpen) onToggle();
+        onToggle();
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
+  }, [isOpen, onToggle]);
 
   return (
     <div className="relative h-full flex items-center" ref={dropdownRef}>
@@ -59,32 +60,32 @@ const MenuBar: React.FC<MenuBarProps> = ({ user, onLogout, onAction }) => {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
   useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
+    const timer = setInterval(() => setTime(new Date()), 10000); // Only update every 10s for performance
     return () => clearInterval(timer);
   }, []);
 
-  const appleMenu = [
+  const appleMenu = useMemo(() => [
     { label: 'About CloudOS', onClick: () => onAction('SYSTEM_INFO') },
     { label: 'System Settings...', onClick: () => onAction('PREFERENCES') },
     { label: 'Activity Hub...', onClick: () => onAction('DASHBOARD') },
     { label: 'Force Quit...', onClick: () => window.location.reload(), shortcut: '⌥⌘⎋' },
     { label: 'Restart Shell', onClick: () => window.location.reload(), variant: 'danger' as const },
     { label: 'Sleep System', onClick: onLogout, variant: 'danger' as const },
-  ];
+  ], [onAction, onLogout]);
 
-  const fileMenu = [
+  const fileMenu = useMemo(() => [
     { label: 'New Neural Folder', onClick: () => onAction('NEW_FOLDER'), shortcut: '⌘N' },
     { label: 'Ingest Asset...', onClick: () => onAction('UPLOAD'), shortcut: '⌘I' },
     { label: 'Purge Trash Buffer', onClick: () => onAction('PURGE_TRASH'), variant: 'danger' as const },
-  ];
+  ], [onAction]);
 
-  const viewMenu = [
+  const viewMenu = useMemo(() => [
     { label: 'Light Aesthetic', onClick: () => onAction('THEME_LIGHT') },
     { label: 'Matrix Dark', onClick: () => onAction('THEME_DARK') },
     { label: 'Midnight Echo', onClick: () => onAction('THEME_MIDNIGHT') },
     { label: 'Solar Pulse', onClick: () => onAction('THEME_SOLAR') },
     { label: 'Toggle Layout Mode', onClick: () => onAction('TOGGLE_VIEW') },
-  ];
+  ], [onAction]);
 
   return (
     <header className="fixed top-0 left-0 right-0 h-[28px] mac-blur dark:bg-black/60 z-50 flex items-center justify-between px-4 text-[11px] font-bold shadow-sm border-b border-black/5 dark:border-white/5">
@@ -142,4 +143,4 @@ const MenuBar: React.FC<MenuBarProps> = ({ user, onLogout, onAction }) => {
   );
 };
 
-export default MenuBar;
+export default React.memo(MenuBar);

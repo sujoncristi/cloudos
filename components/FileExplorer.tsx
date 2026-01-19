@@ -42,9 +42,9 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
   }, [currentFolderId, files]);
 
   const filteredFiles = useMemo(() => {
+    const query = searchQuery.toLowerCase();
     return files.filter(f => {
-      const matchesSearch = f.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            f.type.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = query === '' || f.name.toLowerCase().includes(query) || f.type.toLowerCase().includes(query);
       const matchesDeleted = viewMode === 'trash' ? f.isDeleted : !f.isDeleted;
       const matchesFolder = viewMode === 'trash' ? true : (searchQuery ? true : f.parentId === currentFolderId);
       return matchesSearch && matchesDeleted && matchesFolder;
@@ -88,13 +88,13 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
     return () => window.removeEventListener('cloudos-action', handleAction);
   }, [filteredFiles, handleCreateFolder, onSelectFiles]);
 
-  const handleOpenFolder = (file: FileItem) => {
+  const handleOpenFolder = useCallback((file: FileItem) => {
     if (file.isLocked && file.password) {
       const p = prompt(`Access Key required for hidden asset:`);
       if (p === file.password) setCurrentFolderId(file.id);
       else if (p !== null) alert("Identity mismatch.");
     } else setCurrentFolderId(file.id);
-  };
+  }, []);
 
   const menuItems = useMemo(() => {
     if (!contextMenu) return [];
@@ -119,12 +119,21 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
       ];
     }
     return [[{ label: 'Create Neural Folder', onClick: handleCreateFolder }, { label: 'Ingest External Link', onClick: () => fileInputRef.current?.click() }]];
-  }, [contextMenu, files, selectedFileIds, handleCreateFolder, onUpdateFiles, onPreview, onBulkRename, onEditFile, onShareFile]);
+  }, [contextMenu, files, selectedFileIds, handleCreateFolder, onUpdateFiles, onPreview, onBulkRename, onEditFile, onShareFile, handleOpenFolder]);
+
+  const onFileClick = useCallback((e: React.MouseEvent, file: FileItem) => {
+    e.stopPropagation(); 
+    const isSelected = selectedFileIds.includes(file.id);
+    if (e.shiftKey || e.metaKey) {
+      onSelectFiles(isSelected ? selectedFileIds.filter(id => id !== file.id) : [...selectedFileIds, file.id]);
+    } else {
+      onSelectFiles([file.id]);
+    }
+  }, [selectedFileIds, onSelectFiles]);
 
   return (
     <div className="flex flex-1 flex-col bg-white/40 dark:bg-black/60 overflow-hidden relative" onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY }); }}>
       
-      {/* Spotlight-Style Search Overlay */}
       <div className={`transition-all duration-500 flex flex-col items-center justify-center p-4 border-b border-white/20 dark:border-white/10 ${isSearchFocused ? 'h-32 bg-white/70 dark:bg-black/90 shadow-2xl z-20' : 'h-16 bg-white/40 dark:bg-black/40'}`}>
          <div className={`relative flex items-center transition-all duration-500 ease-out group ${isSearchFocused ? 'w-[85%] scale-105' : 'w-[70%]'}`}>
             <div className={`absolute left-5 transition-transform duration-300 ${isSearchFocused ? 'scale-125 text-blue-500' : 'text-gray-400'}`}>
@@ -142,7 +151,6 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
          </div>
       </div>
 
-      {/* Explorer Navigation Bar */}
       <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-white/30 dark:bg-black/30 backdrop-blur-3xl shrink-0">
         <div className="flex items-center space-x-5">
           <div className="flex bg-black/10 dark:bg-white/10 p-1 rounded-[16px] shadow-inner">
@@ -180,14 +188,13 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
                 return (
                   <div key={file.id} 
                     className={`flex flex-col items-center p-4 rounded-[28px] transition-all cursor-default group relative animate-in fade-in zoom-in-95 duration-300 ${isSelected ? 'bg-blue-600/10 dark:bg-blue-500/20 ring-2 ring-blue-500/40 shadow-xl scale-105 z-10' : 'hover:bg-white/80 dark:hover:bg-white/5'}`}
-                    onClick={(e) => { e.stopPropagation(); if (e.shiftKey || e.metaKey) onSelectFiles(isSelected ? selectedFileIds.filter(id => id !== file.id) : [...selectedFileIds, file.id]); else onSelectFiles([file.id]); }}
+                    onClick={(e) => onFileClick(e, file)}
                     onDoubleClick={() => file.isFolder ? handleOpenFolder(file) : onPreview(file)}
                     onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onSelectFiles([file.id]); setContextMenu({ x: e.clientX, y: e.clientY, fileId: file.id }); }}
                   >
                     <div className="w-24 h-24 flex items-center justify-center text-6xl shadow-2xl rounded-[24%] bg-white dark:bg-black/80 border border-white dark:border-white/10 group-active:scale-95 transition-all overflow-hidden relative">
                         {file.isFolder ? '📂' : file.type === 'image' ? <img src={file.dataUrl} className="w-full h-full object-cover" alt="" /> : file.type === 'video' ? '🎥' : file.type === 'audio' ? '🎵' : '📄'}
                         
-                        {/* Selection Indicator */}
                         {isSelected && (
                           <div className="absolute top-2 left-2 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white animate-in zoom-in duration-200">
                              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
@@ -207,12 +214,11 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
                   <tbody className="divide-y divide-white/10 dark:divide-white/5">
                     {filteredFiles.map(file => (
                       <tr key={file.id} 
-                        onClick={(e) => { e.stopPropagation(); onSelectFiles([file.id]); }} 
+                        onClick={(e) => onFileClick(e, file)} 
                         onDoubleClick={() => file.isFolder ? handleOpenFolder(file) : onPreview(file)}
                         className={`hover:bg-blue-500/5 dark:hover:bg-blue-500/10 cursor-default transition-all duration-300 ${selectedFileIds.includes(file.id) ? 'bg-blue-500/10' : ''}`}>
                         <td className="px-12 py-6 flex items-center space-x-6 text-[14px] font-black text-gray-800 dark:text-white/95">
                            <span className="text-4xl filter drop-shadow-lg">{file.isFolder ? '📂' : '📄'}</span>
-                           {/* Name removed as per request - only icon remains in the main list view identity column */}
                         </td>
                         <td className="px-12 py-6 text-[12px] font-bold text-gray-500 dark:text-gray-400">{(file.size/1024).toFixed(1)} KB</td>
                         <td className="px-12 py-6 text-[12px] font-bold text-gray-500 dark:text-gray-400">{new Date(file.createdAt).toLocaleDateString()}</td>
@@ -232,4 +238,4 @@ const FileExplorer: React.FC<FileExplorerProps> = ({
   );
 };
 
-export default FileExplorer;
+export default React.memo(FileExplorer);

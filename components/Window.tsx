@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { WindowType } from '../types';
 
 interface WindowProps {
@@ -36,7 +36,7 @@ const Window: React.FC<WindowProps> = ({ type, children, onClose, isActive, onFo
 
   const handleMouseUp = () => setIsDragging(false);
 
-  const getTitle = () => {
+  const title = useMemo(() => {
     switch (type) {
       case WindowType.FILES: return 'Finder';
       case WindowType.SETTINGS: return 'Admin Console';
@@ -55,7 +55,7 @@ const Window: React.FC<WindowProps> = ({ type, children, onClose, isActive, onFo
       case WindowType.WEATHER: return 'Weather';
       default: return 'Window';
     }
-  };
+  }, [type]);
 
   const isMobile = window.innerWidth < 768;
 
@@ -85,7 +85,9 @@ const Window: React.FC<WindowProps> = ({ type, children, onClose, isActive, onFo
             '680px',
     maxHeight: '88vh',
     zIndex: isActive ? 40 : 30,
-    transition: isDragging ? 'none' : 'z-index 0.2s ease, transform 0.2s ease, box-shadow 0.3s ease'
+    transition: isDragging ? 'none' : 'z-index 0.2s ease, transform 0.2s ease, box-shadow 0.3s ease',
+    willChange: 'transform, top, left, width, height',
+    transform: 'translate3d(0,0,0)' // Force GPU acceleration
   };
 
   return (
@@ -109,7 +111,7 @@ const Window: React.FC<WindowProps> = ({ type, children, onClose, isActive, onFo
           <div className="w-3.5 h-3.5 bg-[#27C93F] rounded-full shadow-inner border border-black/10"></div>
         </div>
         <span className={`text-[11px] font-black tracking-tight uppercase transition-opacity duration-300 ${isActive ? 'text-gray-800 dark:text-white' : 'text-gray-400 dark:text-gray-600'}`}>
-          {getTitle()}
+          {title}
         </span>
         <div className="w-14"></div>
       </div>
@@ -121,4 +123,4 @@ const Window: React.FC<WindowProps> = ({ type, children, onClose, isActive, onFo
   );
 };
 
-export default Window;
+export default React.memo(Window);

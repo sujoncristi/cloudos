@@ -12,7 +12,7 @@ const DockIcon: React.FC<{
   icon: React.ReactNode, 
   onClick: () => void,
   label: string 
-}> = ({ bg, icon, onClick, label }) => (
+}> = React.memo(({ bg, icon, onClick, label }) => (
   <div className="group relative flex flex-col items-center">
     <div 
       onClick={onClick}
@@ -21,11 +21,11 @@ const DockIcon: React.FC<{
       <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
       {icon}
     </div>
-    <span className="absolute -top-12 scale-0 group-hover:scale-100 transition-all duration-300 px-3 py-1.5 rounded-xl bg-black/80 backdrop-blur-xl text-white text-[11px] font-bold whitespace-nowrap z-[100] shadow-2xl border border-white/10 opacity-0 group-hover:opacity-100">
+    <span className="absolute -top-12 scale-0 group-hover:scale-100 transition-all duration-300 px-3 py-1.5 rounded-xl bg-black/80 backdrop-blur-xl text-white text-[11px] font-bold whitespace-nowrap z-[100] shadow-2xl border border-white/10 opacity-0 group-hover:opacity-100 pointer-events-none">
       {label}
     </span>
   </div>
-);
+));
 
 const Dock: React.FC<DockProps> = ({ user, onOpen }) => {
   return (
@@ -93,4 +93,4 @@ const Dock: React.FC<DockProps> = ({ user, onOpen }) => {
   );
 };
 
-export default Dock;
+export default React.memo(Dock);
