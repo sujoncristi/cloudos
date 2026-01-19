@@ -1,0 +1,8 @@
+{
+  "name": "CloudOS File Manager",
+  "description": "A macOS-inspired file management system with iOS-style aesthetics, featuring user registration, storage quotas, and media previews.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
